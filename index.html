@@ -1,0 +1,165 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Rasta — Shortest Path Visualizer</title>
+<meta name="description" content="Compare Dijkstra, A*, Bellman–Ford and Bidirectional Dijkstra on real OpenStreetMap roads in Kolkata." />
+<link rel="stylesheet" href="vendor/leaflet/leaflet.css" />
+<link rel="stylesheet" href="css/style.css" />
+</head>
+<body>
+<header class="topbar">
+  <div class="brand">
+    <span class="logo-wrap" aria-hidden="true">
+      <svg viewBox="0 0 32 32">
+        <path d="M7 25c0-5 5-6 9-6s9-1 9-6" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"/>
+        <circle cx="7" cy="25" r="3.2" fill="currentColor"/>
+        <circle cx="25" cy="7" r="3.2" fill="currentColor"/>
+      </svg>
+    </span>
+    <div class="brand-text">
+      <h1>Rasta</h1>
+      <p>Shortest-path visualizer · Kolkata</p>
+    </div>
+  </div>
+  <div class="topbar-right">
+    <span class="chip" id="graphStats">Loading road graph…</span>
+  </div>
+</header>
+
+<main class="layout">
+  <aside class="panel">
+    <section class="card">
+      <div class="card-head">
+        <h2>Journey</h2>
+        <span class="hint">click map or search</span>
+      </div>
+      <label class="field">
+        <span class="field-dot start" aria-hidden="true">A</span>
+        <input id="fromInput" list="placeList" placeholder="Start place…" autocomplete="off" spellcheck="false" aria-label="Start place" />
+      </label>
+      <label class="field">
+        <span class="field-dot end" aria-hidden="true">B</span>
+        <input id="toInput" list="placeList" placeholder="Destination…" autocomplete="off" spellcheck="false" aria-label="Destination" />
+      </label>
+      <datalist id="placeList"></datalist>
+      <div class="row">
+        <button class="btn ghost" id="swapBtn" type="button">⇅ Swap</button>
+        <button class="btn ghost" id="resetBtn" type="button">Reset</button>
+      </div>
+      <p class="micro" id="snapNote">Click once for A, again for B. Drag pins to fine-tune.</p>
+    </section>
+
+    <section class="card">
+      <div class="card-head">
+        <h2>Algorithm</h2>
+        <span class="hint">switch any time</span>
+      </div>
+      <div class="algo-grid" role="group" aria-label="Shortest path algorithm">
+        <button class="algo-btn is-active" data-algo="dijkstra" type="button" aria-pressed="true"><i></i>Dijkstra</button>
+        <button class="algo-btn" data-algo="astar" type="button" aria-pressed="false"><i></i>A* search</button>
+        <button class="algo-btn" data-algo="bellman" type="button" aria-pressed="false"><i></i>Bellman–Ford</button>
+        <button class="algo-btn" data-algo="bidir" type="button" aria-pressed="false"><i></i>Bidirectional</button>
+      </div>
+      <div class="mode-row">
+        <span class="label">Optimise for</span>
+        <div class="seg" role="group" aria-label="Optimisation mode">
+          <button class="seg-btn is-active" data-mode="distance" type="button" aria-pressed="true">Distance</button>
+          <button class="seg-btn" data-mode="time" type="button" aria-pressed="false">Time</button>
+        </div>
+      </div>
+      <button class="btn primary" id="compareBtn" type="button">Compare all four</button>
+    </section>
+
+    <section class="card results" id="resultsCard">
+      <div class="card-head">
+        <h2>Result</h2>
+        <span class="algo-pill" id="resultAlgo">Dijkstra</span>
+      </div>
+      <p class="empty" id="emptyState">Pick a start and a destination to run the search.</p>
+      <div id="resultBody" hidden>
+        <div class="readouts">
+          <div>
+            <span class="label">Distance</span>
+            <strong id="distanceValue">—</strong>
+          </div>
+          <div>
+            <span class="label">Est. drive time</span>
+            <strong id="timeValue">—</strong>
+          </div>
+        </div>
+        <div class="metrics">
+          <div><span>Nodes explored</span><b id="exploredValue">—</b></div>
+          <div><span>Runtime</span><b id="runtimeValue">—</b></div>
+          <div class="wide"><span>Time complexity</span><b id="complexityValue">—</b></div>
+        </div>
+        <p class="via" id="viaLine"></p>
+        <p class="journey-line" id="journeyLine"></p>
+        <p class="no-route" id="noRoute" hidden>No route found. A blocked road may be required — clear blocks and try again.</p>
+      </div>
+    </section>
+
+    <section class="card view">
+      <div class="card-head"><h2>Map layers</h2></div>
+      <label class="toggle"><input type="checkbox" id="animateToggle" checked /><span>Animate the search</span></label>
+      <label class="toggle"><input type="checkbox" id="minorToggle" /><span>Show every local street</span></label>
+      <div class="block-row">
+        <span class="label">Road blocks</span>
+        <button class="btn ghost small" id="clearBlocksBtn" type="button" disabled>Clear blocks</button>
+      </div>
+      <p class="micro">Click the highlighted route to block that segment and rerun the search.</p>
+    </section>
+
+    <p class="footnote">Road data © <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">OpenStreetMap</a> contributors (ODbL), pre-downloaded for offline use. Network distances, not live traffic.</p>
+  </aside>
+
+  <section class="map-wrap">
+    <div id="map" role="application" aria-label="Road map — click to set start and destination"></div>
+    <div class="map-badge" id="mapBadge">Loading…</div>
+    <div class="legend" aria-hidden="true">
+      <span><i class="swatch route"></i>Route</span>
+      <span><i class="swatch explored"></i>Explored</span>
+      <span><i class="swatch blocked"></i>Blocked</span>
+    </div>
+    <div class="map-note" id="mapNote" hidden></div>
+    <div class="busy" id="busy" hidden>
+      <span class="spinner" aria-hidden="true"></span>
+      <span id="busyText">Working…</span>
+    </div>
+    <div class="compare-panel" id="comparePanel" hidden>
+      <div class="compare-head">
+        <div>
+          <h2>Algorithm comparison</h2>
+          <p id="compareSub"></p>
+        </div>
+        <button class="icon-btn" id="compareClose" type="button" aria-label="Close comparison">×</button>
+      </div>
+      <div class="table-scroll">
+        <table>
+          <thead>
+            <tr>
+              <th scope="col">Algorithm</th>
+              <th scope="col">Distance</th>
+              <th scope="col">Est. time</th>
+              <th scope="col">Explored</th>
+              <th scope="col">Runtime</th>
+              <th scope="col">Complexity</th>
+            </tr>
+          </thead>
+          <tbody id="compareBody"></tbody>
+        </table>
+      </div>
+      <p class="micro">Measured in this browser for the same start and destination. Bellman–Ford explores every reachable node, so its count is larger by design.</p>
+    </div>
+  </section>
+</main>
+
+<div class="toast" id="toast" role="status" aria-live="polite" hidden></div>
+
+<script src="vendor/leaflet/leaflet.js"></script>
+<script src="js/algorithms.js"></script>
+<script src="js/canvas-layer.js"></script>
+<script src="js/app.js"></script>
+</body>
+</html>
