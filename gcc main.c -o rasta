@@ -1,0 +1,86 @@
+#include <stdio.h>
+#include <stdbool.h>
+#include <limits.h>
+
+#define VERTICES 6
+
+// Function to find the vertex with the minimum distance value
+int get_min_distance(int dist[], bool visited[]) {
+    int min = INT_MAX, min_index = -1;
+
+    for (int v = 0; v < VERTICES; v++) {
+        if (!visited[v] && dist[v] <= min) {
+            min = dist[v];
+            min_index = v;
+        }
+    }
+    return min_index;
+}
+
+// Function to print the path from source to target recursively
+void print_path(int parent[], int j) {
+    if (parent[j] == -1) {
+        printf("%d", j);
+        return;
+    }
+    print_path(parent, parent[j]);
+    printf(" -> %d", j);
+}
+
+// Dijkstra's algorithm for finding shortest paths from a source
+void find_shortest_paths(int graph[VERTICES][VERTICES], int src) {
+    int dist[VERTICES];
+    bool visited[VERTICES];
+    int parent[VERTICES];
+
+    for (int i = 0; i < VERTICES; i++) {
+        dist[i] = INT_MAX;
+        visited[i] = false;
+        parent[i] = -1;
+    }
+
+    dist[src] = 0;
+
+    for (int count = 0; count < VERTICES - 1; count++) {
+        int u = get_min_distance(dist, visited);
+        if (u == -1) break;
+
+        visited[u] = true;
+
+        for (int v = 0; v < VERTICES; v++) {
+            if (!visited[v] && graph[u][v] && dist[u] != INT_MAX
+                && dist[u] + graph[u][v] < dist[v]) {
+                dist[v] = dist[u] + graph[u][v];
+                parent[v] = u;
+            }
+        }
+    }
+
+    // Display results
+    printf("Source Node: %d\n", src);
+    printf("---------------------------------------------\n");
+    printf("Destination\tDistance\tRoute\n");
+    printf("---------------------------------------------\n");
+    for (int i = 0; i < VERTICES; i++) {
+        printf("Node %d\t\t%d\t\t", i, dist[i]);
+        print_path(parent, i);
+        printf("\n");
+    }
+}
+
+int main() {
+    // Adjacency matrix representation of a road network
+    // graph[i][j] represents distance/cost between node i and node j (0 = no direct edge)
+    int road_network[VERTICES][VERTICES] = {
+        { 0, 4, 2, 0, 0, 0 },
+        { 4, 0, 1, 5, 0, 0 },
+        { 2, 1, 0, 8, 10, 0 },
+        { 0, 5, 8, 0, 2, 6 },
+        { 0, 0, 10, 2, 0, 3 },
+        { 0, 0, 0, 6, 3, 0 }
+    };
+
+    find_shortest_paths(road_network, 0);
+
+    return 0;
+}
