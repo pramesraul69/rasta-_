@@ -1,0 +1,55 @@
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <stdbool.h>
+#include <limits.h>
+
+#define MAX_NAME_LEN 50
+#define MAX_LOCATIONS 50
+
+typedef struct {
+    char name[MAX_NAME_LEN];
+} Location;
+
+typedef struct {
+    int num_locations;
+    Location locations[MAX_LOCATIONS];
+    int adj_matrix[MAX_LOCATIONS][MAX_LOCATIONS];
+} RoadNetwork;
+
+void init_network(RoadNetwork *net) {
+    net->num_locations = 0;
+    for (int i = 0; i < MAX_LOCATIONS; i++) {
+        for (int j = 0; j < MAX_LOCATIONS; j++) {
+            net->adj_matrix[i][j] = (i == j) ? 0 : 0;
+        }
+    }
+}
+
+int find_location_index(RoadNetwork *net, const char *name) {
+    for (int i = 0; i < net->num_locations; i++) {
+        if (strcmp(net->locations[i].name, name) == 0) {
+            return i;
+        }
+    }
+    return -1;
+}
+
+int add_location(RoadNetwork *net, const char *name) {
+    if (net->num_locations >= MAX_LOCATIONS) {
+        printf("Error: Network capacity reached.\n");
+        return -1;
+    }
+    int existing = find_location_index(net, name);
+    if (existing != -1) {
+        return existing;
+    }
+    int idx = net->num_locations++;
+    strncpy(net->locations[idx].name, name, MAX_NAME_LEN - 1);
+    net->locations[idx].name[MAX_NAME_LEN - 1] = '\0';
+    return idx;
+}
+
+void add_road(RoadNetwork *net, const char *src_name, const char *dest_name, int distance) {
+    int u = add_location(net, src_name);
+
