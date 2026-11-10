@@ -1,0 +1,169 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Rasta Frame Generator</title>
+    <!-- Tailwind CSS for sleek UI -->
+    <script src="https://jsdelivr.net"></script>
+    <style>
+        .rasta-gradient {
+            background: linear-gradient(to right, #e53e3e, #ecc94b, #38a169);
+        }
+    </style>
+</head>
+<body class="bg-gray-900 text-gray-100 min-h-screen flex flex-col items-center justify-between font-sans">
+
+    <!-- Header -->
+    <header class="w-full py-6 text-center border-b border-gray-800 shadow-md">
+        <h1 class="text-4xl font-extrabold tracking-wider text-transparent bg-clip-text rasta-gradient">
+            RASTA FRAME GENERATOR
+        </h1>
+        <p class="text-gray-400 mt-2 text-sm">Level up your profile picture with Red, Gold, & Green</p>
+    </header>
+
+    <!-- Main Workspace -->
+    <main class="flex flex-col md:flex-row items-center justify-center gap-10 p-6 max-w-5xl w-full flex-grow">
+        
+        <!-- Controls Side -->
+        <div class="w-full md:w-1/2 bg-gray-800 p-6 rounded-2xl shadow-xl border border-gray-700 space-y-6">
+            <div>
+                <label class="block text-sm font-medium text-gray-300 mb-2">1. Upload your photo</label>
+                <input type="file" id="imageLoader" accept="image/*" 
+                    class="w-full text-sm text-gray-400 file:mr-4 file:py-2 file:px-4 file:rounded-xl file:border-0 file:text-sm file:font-semibold file:bg-yellow-500 file:text-gray-900 hover:file:bg-yellow-400 file:cursor-pointer cursor-pointer bg-gray-900 p-2 rounded-xl border border-gray-600" />
+            </div>
+
+            <div class="space-y-4">
+                <label class="block text-sm font-medium text-gray-300">2. Customize Frame Style</label>
+                <div class="grid grid-cols-2 gap-3">
+                    <button onclick="setFrameStyle('border')" class="py-2.5 px-4 bg-gray-700 hover:bg-gray-600 rounded-xl font-medium border border-transparent focus:border-red-500 transition">Classic Border</button>
+                    <button onclick="setFrameStyle('circle')" class="py-2.5 px-4 bg-gray-700 hover:bg-gray-600 rounded-xl font-medium border border-transparent focus:border-yellow-500 transition">Circle Badge</button>
+                </div>
+            </div>
+
+            <div>
+                <label class="block text-sm font-medium text-gray-300 mb-1">Frame Thickness</label>
+                <input type="range" id="frameWidth" min="10" max="60" value="30" class="w-full accent-yellow-500 cursor-pointer" />
+            </div>
+
+            <button id="downloadBtn" disabled 
+                class="w-full py-3 px-6 bg-green-600 hover:bg-green-500 disabled:bg-gray-700 disabled:text-gray-500 disabled:cursor-not-allowed font-bold rounded-xl shadow-lg transition duration-200 transform active:scale-95">
+                Download Frame
+            </button>
+        </div>
+
+        <!-- Preview Side -->
+        <div class="w-full md:w-1/2 flex flex-col items-center justify-center bg-gray-950 p-6 rounded-2xl border border-gray-800 min-h-[350px]">
+            <span id="placeholderText" class="text-gray-500 italic text-center">Upload an image to preview frame</span>
+            <canvas id="imageCanvas" class="max-w-full h-auto rounded-lg shadow-2xl hidden"></canvas>
+        </div>
+
+    </main>
+
+    <!-- Footer -->
+    <footer class="w-full py-4 text-center text-xs text-gray-600 border-t border-gray-800">
+        Powered by Vercel & HTML5 Canvas
+    </footer>
+
+    <!-- Canvas Logic -->
+    <script>
+        const imageLoader = document.getElementById('imageLoader');
+        const canvas = document.getElementById('imageCanvas');
+        const ctx = canvas.getContext('2d');
+        const frameWidthSlider = document.getElementById('frameWidth');
+        const downloadBtn = document.getElementById('downloadBtn');
+        const placeholderText = document.getElementById('placeholderText');
+
+        let uploadedImg = null;
+        let currentStyle = 'border'; 
+
+        imageLoader.addEventListener('change', handleImage, false);
+        frameWidthSlider.addEventListener('input', drawEverything);
+
+        function handleImage(e) {
+            const reader = new FileReader();
+            reader.onload = function(event) {
+                uploadedImg = new Image();
+                uploadedImg.onload = function() {
+                    // Set square canvas based on the largest dimension of the photo
+                    const size = Math.max(uploadedImg.width, uploadedImg.height);
+                    canvas.width = size;
+                    canvas.height = size;
+                    
+                    placeholderText.classList.add('hidden');
+                    canvas.classList.remove('hidden');
+                    downloadBtn.removeAttribute('disabled');
+                    
+                    drawEverything();
+                }
+                uploadedImg.src = event.target.result;
+            }
+            if(e.target.files[0]) {
+                reader.readAsDataURL(e.target.files[0]);
+            }
+        }
+
+        function setFrameStyle(style) {
+            currentStyle = style;
+            if (uploadedImg) drawEverything();
+        }
+
+        function drawEverything() {
+            if (!uploadedImg) return;
+
+            const w = canvas.width;
+            const h = canvas.height;
+            const borderSize = parseInt(frameWidthSlider.value) * (w / 500); // dynamic sizing scalar
+
+            ctx.clearRect(0, 0, w, h);
+
+            // Draw center cropped or fit user image
+            ctx.drawImage(uploadedImg, 0, 0, w, h);
+
+            if (currentStyle === 'border') {
+                // 3-Stripe Classic Rasta Border (Red, Gold, Green)
+                const stripe = borderSize / 3;
+
+                ctx.strokeStyle = '#e53e3e'; // Red
+                ctx.lineWidth = stripe;
+                ctx.strokeRect(stripe/2, stripe/2, w - stripe, h - stripe);
+
+                ctx.strokeStyle = '#ecc94b'; // Gold
+                ctx.lineWidth = stripe;
+                ctx.strokeRect(stripe + stripe/2, stripe + stripe/2, w - (stripe*3), h - (stripe*3));
+
+                ctx.strokeStyle = '#38a169'; // Green
+                ctx.lineWidth = stripe;
+                ctx.strokeRect((stripe*2) + stripe/2, (stripe*2) + stripe/2, w - (stripe*5), h - (stripe*5));
+
+            } else if (currentStyle === 'circle') {
+                // Circular Rasta Badge overlay
+                const radius = w / 2;
+                const stripe = borderSize / 3;
+
+                ctx.save();
+                // Mask layout if you want to crop into a circle, or draw rings on top
+                ctx.lineWidth = stripe;
+                
+                ctx.strokeStyle = '#e53e3e';
+                ctx.beginPath(); ctx.arc(radius, radius, radius - stripe/2, 0, 2 * Math.PI); ctx.stroke();
+
+                ctx.strokeStyle = '#ecc94b';
+                ctx.beginPath(); ctx.arc(radius, radius, radius - stripe - stripe/2, 0, 2 * Math.PI); ctx.stroke();
+
+                ctx.strokeStyle = '#38a169';
+                ctx.beginPath(); ctx.arc(radius, radius, radius - (stripe*2) - stripe/2, 0, 2 * Math.PI); ctx.stroke();
+                ctx.restore();
+            }
+        }
+
+        // Download functionality
+        downloadBtn.addEventListener('click', () => {
+            const link = document.createElement('a');
+            link.download = 'rasta-profile-frame.png';
+            link.href = canvas.toDataURL();
+            link.click();
+        });
+    </script>
+</body>
+</html>
